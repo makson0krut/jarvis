@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Утро</title>
+<meta name="theme-color" content="#07090a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Утро">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="greet">Доброе утро</h1>
+      <div class="sub" id="today"></div>
+    </div>
+    <div class="headtools">
+      <div class="clock" id="clock">--:--<small id="clockSub">сейчас</small></div>
+      <button class="iconbtn" id="settingsBtn" aria-label="Настройки">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card assistant" aria-label="Ассистент">
+      <canvas id="orb" width="560" height="560" aria-hidden="true"></canvas>
+      <button class="ask" id="askBtn">Какие сегодня планы?</button>
+      <div class="row">
+        <button class="btn" id="voiceBtn" aria-pressed="true">🔊 Голос</button>
+        <button class="btn" id="micAskBtn" hidden>🎙 Спросить голосом</button>
+        <button class="btn" id="stopBtn" hidden>Остановить</button>
+      </div>
+      <div class="brief placeholder" id="brief" aria-live="polite">Нажми кнопку — расскажу, что у тебя сегодня по часам, и подскажу, где есть свободное окно.</div>
+      <div class="status" id="status"></div>
+    </section>
+
+    <section class="card" aria-label="План дня">
+      <div class="dayhead">
+        <div class="tabs">
+          <button class="btn" data-off="-1">Вчера</button>
+          <button class="btn" data-off="0" aria-pressed="true">Сегодня</button>
+          <button class="btn" data-off="1">Завтра</button>
+        </div>
+        <input type="date" id="datePick" aria-label="Выбрать дату">
+      </div>
+
+      <div class="stats">
+        <div class="stat"><b id="sCount">0</b><span>дел</span></div>
+        <div class="stat"><b id="sDone">0</b><span>сделано</span></div>
+        <div class="stat"><b class="next" id="sNext">—</b><span id="sNextLbl">дальше</span></div>
+      </div>
+
+      <div class="strip" id="strip" aria-hidden="true"></div>
+      <div class="ticks" aria-hidden="true"><span>06</span><span>09</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span></div>
+
+      <div class="list" id="list"></div>
+
+      <form class="add" id="addForm">
+        <label for="planText">Записать планы</label>
+        <div class="inputwrap">
+          <textarea id="planText" placeholder="Пиши как удобно: «завтра в 9:30 пара, в 14 спортзал на полтора часа, вечером позвонить Даше»"></textarea>
+          <button type="button" class="iconbtn" id="micBtn" aria-label="Надиктовать" hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>
+          </button>
+        </div>
+        <div class="chips" id="chips">
+          <button type="button" class="chip">в 10 созвон на час</button>
+          <button type="button" class="chip">13:00 обед, 18:30 спортзал</button>
+          <button type="button" class="chip">завтра утром дописать бизнес-план</button>
+        </div>
+        <div class="addrow">
+          <span class="hint" id="addHint"></span>
+          <button class="ask" id="addBtn" type="submit" style="font-size:14px;padding:11px 18px">Добавить</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+
+<dialog id="settings">
+  <form method="dialog">
+    <h3>Настройки</h3>
+    <div class="field">
+      <label for="nameIn">Как к тебе обращаться</label>
+      <input type="text" id="nameIn" placeholder="Максим" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="keyIn">Ключ Claude API <span class="badge off" id="keyBadge">не подключён</span></label>
+      <input type="password" id="keyIn" placeholder="sk-ant-…" autocomplete="off">
+      <p>Необязательно. С ключом Claude понимает любые формулировки и рассказывает день живым текстом. Без ключа работает встроенный разбор («14:00 спортзал», «завтра в 9 пара», «вечером позвонить»). Ключ хранится только на этом устройстве.</p>
+    </div>
+    <div class="sep"></div>
+    <div class="field">
+      <label>Резервная копия</label>
+      <div class="row" style="justify-content:flex-start">
+        <button type="button" class="btn" id="exportBtn">Скачать копию</button>
+        <button type="button" class="btn" id="importBtn">Загрузить копию</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <p>Дела хранятся в памяти телефона. Иногда сохраняй копию, чтобы перенести их на другое устройство.</p>
+    </div>
+    <div class="row">
+      <button type="button" class="btn" id="clearDone">Удалить выполненные</button>
+      <button class="ask" value="ok" style="font-size:14px;padding:10px 18px">Готово</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
