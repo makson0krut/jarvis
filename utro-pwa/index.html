@@ -95,10 +95,29 @@
       <input type="text" id="nameIn" placeholder="Максим" autocomplete="off">
     </div>
     <div class="field">
-      <label for="keyIn">Ключ Claude API <span class="badge off" id="keyBadge">не подключён</span></label>
-      <input type="password" id="keyIn" placeholder="sk-ant-…" autocomplete="off">
-      <p>Необязательно. С ключом Claude понимает любые формулировки и рассказывает день живым текстом. Без ключа работает встроенный разбор («14:00 спортзал», «завтра в 9 пара», «вечером позвонить»). Ключ хранится только на этом устройстве.</p>
+      <label for="provIn">Нейросеть <span class="badge off" id="keyBadge">не подключена</span></label>
+      <select id="provIn">
+        <option value="openrouter">OpenRouter — бесплатные модели (DeepSeek и др.)</option>
+        <option value="deepseek">DeepSeek напрямую</option>
+        <option value="anthropic">Claude (Anthropic)</option>
+        <option value="custom">Другой OpenAI-совместимый API</option>
+      </select>
     </div>
+    <div class="field" id="urlField" hidden>
+      <label for="urlIn">Адрес API</label>
+      <input type="text" id="urlIn" placeholder="https://…/v1/chat/completions" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="keyIn">Ключ API</label>
+      <input type="password" id="keyIn" placeholder="sk-…" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="modelIn">Модель</label>
+      <input type="text" id="modelIn" autocomplete="off">
+      <p id="provHelp"></p>
+      <button type="button" class="btn" id="testBtn" style="justify-self:start">Проверить подключение</button>
+    </div>
+    <p>Необязательно. Без ключа работает встроенный разбор («14:00 спортзал», «завтра в 9 пара») и рассказ по шаблону. Ключ хранится только на этом устройстве.</p>
     <div class="sep"></div>
     <div class="field">
       <label>Резервная копия</label>

@@ -35,29 +35,61 @@
 
   function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600); }
 
-  /* ---------------- Claude API (необязательно) ---------------- */
+  /* ---------------- нейросеть (необязательно) ---------------- */
+  // Провайдеры: OpenRouter и DeepSeek говорят на формате OpenAI, Anthropic — на своём.
+  const PROVIDERS = {
+    openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1/chat/completions", model: "deepseek/deepseek-chat-v3-0324:free",
+      help: 'Ключ бесплатно на openrouter.ai → Keys. Модели с «:free» в названии бесплатны (≈50 запросов в день — приложению хватает). Если модель пропала, найди другую на openrouter.ai/models, фильтр «Free», и вставь её id сюда.' },
+    deepseek: { name: "DeepSeek", url: "https://api.deepseek.com/chat/completions", model: "deepseek-chat",
+      help: "Ключ на platform.deepseek.com → API keys. При регистрации дают пробный баланс, дальше платно, но очень дёшево." },
+    anthropic: { name: "Claude", url: "https://api.anthropic.com/v1/messages", model: "claude-haiku-5-5",
+      help: "Ключ на console.anthropic.com. Платно, отдельно от подписки Claude." },
+    custom: { name: "API", url: "", model: "",
+      help: "Любой сервис с OpenAI-совместимым /chat/completions (например Groq или локальный LM Studio)." }
+  };
+  K.prov = "utro.provider"; K.model = "utro.model"; K.url = "utro.apiurl";
+  if (get(K.key, "").startsWith("sk-ant-") && !get(K.prov, "")) set(K.prov, "anthropic"); // ключ из прошлой версии
   const apiKey = () => get(K.key, "").trim();
-  async function claude(prompt, maxTokens = 800, signal) {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal,
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey(),
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify({ model: "claude-haiku-5-5", max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] })
-    });
-    if (!r.ok) { const e = new Error("api " + r.status); e.status = r.status; throw e; }
+  const prov = () => PROVIDERS[get(K.prov, "openrouter")] ? get(K.prov, "openrouter") : "openrouter";
+  const aiName = () => PROVIDERS[prov()].name;
+
+  async function ai(prompt, maxTokens = 800, signal, cfg) {
+    const p = cfg?.prov || prov(), P = PROVIDERS[p];
+    const key = cfg?.key ?? apiKey();
+    const model = (cfg?.model ?? get(K.model, "")).trim() || P.model;
+    const url = p === "custom" ? (cfg?.url ?? get(K.url, "")).trim() : P.url;
+    if (!url) { const e = new Error("no url"); e.status = 0; throw e; }
+    let r;
+    if (p === "anthropic") {
+      r = await fetch(url, { method: "POST", signal,
+        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }) });
+    } else {
+      const headers = { "content-type": "application/json", "authorization": "Bearer " + key };
+      if (p === "openrouter") { headers["HTTP-Referer"] = location.origin; headers["X-Title"] = "Utro"; }
+      r = await fetch(url, { method: "POST", signal, headers,
+        body: JSON.stringify({ model, max_tokens: maxTokens, temperature: 0.4, messages: [{ role: "user", content: prompt }] }) });
+    }
+    if (!r.ok) { const e = new Error("api " + r.status); e.status = r.status; try { e.detail = (await r.json())?.error?.message; } catch (_) {} throw e; }
     const j = await r.json();
-    return (j.content || []).filter(b => b.type === "text").map(b => b.text).join("").trim();
+    const text = p === "anthropic"
+      ? (j.content || []).filter(b => b.type === "text").map(b => b.text).join("")
+      : (j.choices?.[0]?.message?.content || "");
+    // у «думающих» моделей бывает блок <think>…</think> — выкидываем
+    const clean = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    if (!clean) { const e = new Error("empty"); e.status = -1; throw e; }
+    return clean;
   }
   function apiErrorText(e) {
     if (e?.name === "AbortError") return "";
-    if (e?.status === 401) return "Ключ API не подошёл — проверь его в настройках";
-    if (e?.status === 429) return "Слишком много запросов к Claude — попробуй через минуту";
+    const n = aiName();
     if (!navigator.onLine) return "Нет интернета — ответил встроенный ассистент";
-    return "Claude недоступен — ответил встроенный ассистент";
+    if (e?.status === 401 || e?.status === 403) return `${n}: ключ не подошёл — проверь его в настройках`;
+    if (e?.status === 402) return `${n}: закончился баланс — ответил встроенный ассистент`;
+    if (e?.status === 404 || e?.status === 400) return `${n}: модель не найдена — поменяй её в настройках`;
+    if (e?.status === 429) return `${n}: лимит запросов на сегодня — ответил встроенный ассистент`;
+    if (e instanceof TypeError) return `${n} не отвечает из браузера (сеть или CORS) — ответил встроенный ассистент`;
+    return `${n} недоступен — ответил встроенный ассистент`;
   }
 
   /* ---------------- разбор текста ---------------- */
@@ -125,7 +157,7 @@
 Заметка:
 ${text.slice(0, 4000)}`;
     try {
-      const raw = await claude(prompt, 1200);
+      const raw = await ai(prompt, 1200);
       const arr = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1));
       if (!Array.isArray(arr)) throw 0;
       return arr.filter(x => x && x.title).map(x => ({
@@ -239,7 +271,7 @@ ${items}
 
 Как отвечать: по-русски, на «ты», тепло и бодро, без пафоса${name ? `, обратись по имени (${name})` : ""}. Пройдись по часам по порядку («в 10 утра…», «в 14:00…»). Отметь свободные окна больше часа и подскажи, куда поставить дела без времени. Если что-то уже скоро — скажи, сколько осталось. 4–8 коротких предложений. Это прочитают вслух: никакого markdown, списков, эмодзи и скобок.`;
     ctl = new AbortController();
-    try { return await claude(prompt, 700, ctl.signal); }
+    try { return await ai(prompt, 700, ctl.signal); }
     catch (e) {
       if (e?.name === "AbortError") throw e;
       $("#status").textContent = apiErrorText(e);
@@ -348,10 +380,35 @@ ${items}
 
   /* ---------------- настройки ---------------- */
   const dlg = $("#settings");
-  function syncBadge() { const on = !!apiKey(); const b = $("#keyBadge"); b.textContent = on ? "подключён" : "не подключён"; b.classList.toggle("off", !on);
-    $("#addHint").textContent = on ? "Claude разложит текст по датам и часам" : "Например: «завтра в 9 пара, в 14 спортзал на час»"; }
-  $("#settingsBtn").onclick = () => { $("#nameIn").value = get(K.name, ""); $("#keyIn").value = get(K.key, ""); dlg.showModal(); };
-  dlg.addEventListener("close", () => { set(K.name, $("#nameIn").value.trim()); set(K.key, $("#keyIn").value.trim()); syncBadge(); tick(); });
+  function syncBadge() { const on = !!apiKey(); const b = $("#keyBadge"); b.textContent = on ? aiName() : "не подключена"; b.classList.toggle("off", !on);
+    $("#addHint").textContent = on ? `${aiName()} разложит текст по датам и часам` : "Например: «завтра в 9 пара, в 14 спортзал на час»"; }
+  function syncProvForm() {
+    const p = $("#provIn").value, P = PROVIDERS[p];
+    $("#urlField").hidden = p !== "custom";
+    $("#modelIn").placeholder = P.model || "id модели";
+    $("#provHelp").textContent = P.help;
+  }
+  const formCfg = () => ({ prov: $("#provIn").value, key: $("#keyIn").value.trim(), model: $("#modelIn").value.trim(), url: $("#urlIn").value.trim() });
+  $("#provIn").onchange = () => { $("#modelIn").value = ""; syncProvForm(); };
+  $("#settingsBtn").onclick = () => {
+    $("#nameIn").value = get(K.name, ""); $("#keyIn").value = get(K.key, "");
+    $("#provIn").value = prov(); $("#modelIn").value = get(K.model, ""); $("#urlIn").value = get(K.url, "");
+    syncProvForm(); dlg.showModal();
+  };
+  $("#testBtn").onclick = async () => {
+    const b = $("#testBtn"), c = formCfg();
+    if (!c.key) { b.textContent = "Сначала вставь ключ"; return; }
+    b.disabled = true; b.textContent = "Проверяю…";
+    try { const t = await ai("Ответь одним словом по-русски: работает?", 20, undefined, c); b.textContent = "✓ Работает: " + t.slice(0, 30); }
+    catch (e) { b.textContent = "✗ " + (e.detail ? e.detail.slice(0, 80) : apiErrorText(e).split(" — ")[0]); }
+    finally { b.disabled = false; }
+  };
+  dlg.addEventListener("close", () => {
+    const c = formCfg();
+    set(K.name, $("#nameIn").value.trim()); set(K.key, c.key); set(K.prov, c.prov); set(K.model, c.model); set(K.url, c.url);
+    $("#testBtn").textContent = "Проверить подключение";
+    syncBadge(); tick();
+  });
   $("#exportBtn").onclick = () => {
     const blob = new Blob([JSON.stringify({ app: "utro", v: 1, tasks }, null, 2)], { type: "application/json" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `utro-${iso(new Date())}.json`;

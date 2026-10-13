@@ -1,3 +1,5 @@
+[hidden]{display:none!important}
+body{margin:0}
 /* Layout: two-pane morning console — orb + spoken brief on the left, hour-by-hour day on the right; stacks on phones. Deliberately single dark theme (matches the reference video). */
 :root{
   --bg:#07090a; --panel:#0e1213; --panel-2:#141a1b; --line:#1f2a2a;
@@ -109,7 +111,7 @@ dialog h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0 0
 dialog p{color:var(--muted);font-size:13px;margin:6px 0 14px}
 dialog .field{display:grid;gap:6px;margin-bottom:14px}
 dialog label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-dialog input[type=password],dialog input[type=text],dialog input[type=time]{background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:14px var(--f-body);width:100%;box-sizing:border-box}
+dialog input[type=password],dialog input[type=text],dialog input[type=time],dialog select{background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:14px var(--f-body);width:100%;box-sizing:border-box}
 dialog .row{justify-content:space-between}
 .sep{height:1px;background:var(--line);margin:16px 0}
 .badge{font:600 10px var(--f-mono);letter-spacing:.08em;color:var(--accent);border:1px solid var(--accent-dim);border-radius:999px;padding:2px 8px;text-transform:uppercase}
